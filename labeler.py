@@ -53,6 +53,7 @@ def findRequiredCords(CvImg, name, top, bottom, left, right):
     height = findHeight(CvImg, imageWidth, imageHeight, top, bottom)
     width, StartChord = findWidth(CvImg, imageWidth, imageHeight, left, right)
 
+    drawn = cv2.rectangle(CvImg, (StartChord[0], StartChord[1]), (StartChord[0] + width, StartChord[1] - height), (150, 150, 150), thickness=2)
 
     os.chdir("subject")
     cv2.imwrite(f"dil_{name}", drawn)
