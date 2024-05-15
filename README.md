@@ -24,4 +24,5 @@ Note
     The colors in the palette are used to identify specific subjects in the images, with a greater variety of colors increasing the probability of accurate identification.
     The script assumes that the images in the specified folder are in .jpg format only.
 
+Example input image:
 ![fcone4](https://github.com/SgainsO/YOLO_Single_Object_Labeler/assets/126195012/997cd2c3-7c9d-4363-a10d-32441b9ab344)
