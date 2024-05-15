@@ -25,7 +25,7 @@ def imagePreproccessing(pal, name):          #
 
     cone = Image.open(name)
     
-    cone = cone.resize(Shape)
+#    cone = cone.resize(Shape)
 
     cone  = cone.quantize(palette=palImg, dither=0)         # Use the palette to quantize the image
 
@@ -44,24 +44,25 @@ def makeLabelFile(textFile, x, y, width, height):
 
 
 
-def findRequiredCords(CvImg, name):
+def findRequiredCords(CvImg, name, top, bottom, left, right):
   #  cv2.imshow("test", CvImg)
   #  cv2.waitKey(0)
   #  cv2.destroyAllWindows()
     
     imageHeight, imageWidth, channels = CvImg.shape
-    height = findHeight(CvImg, imageWidth, imageHeight)
-    width, StartChord = findWidth(CvImg, imageWidth, imageHeight)
+    height = findHeight(CvImg, imageWidth, imageHeight, top, bottom)
+    width, StartChord = findWidth(CvImg, imageWidth, imageHeight, left, right)
 
-    drawn = cv2.rectangle(CvImg, (StartChord[0], StartChord[1]), (StartChord[0] + width, StartChord[1] - height), (150, 150, 150), thickness=2)
 
-    cv2.imwrite("test.jpg", drawn)
+    os.chdir("subject")
+    cv2.imwrite(f"dil_{name}", drawn)
+    os.chdir("..")
 
-    xNorm = (StartChord[0] + (width / 2)) / Shape[0]                 #Change the image to trainable yolo values
-    yNorm = (StartChord[1] - (height / 2)) / Shape[1]
+    xNorm = (StartChord[0] + (width / 2)) / imageWidth                 #Change the image to trainable yolo values
+    yNorm = (StartChord[1] - (height / 2)) / imageHeight
 
-    widthNorm = width / Shape[0]
-    heightNorm = height / Shape[1]
+    widthNorm = width / imageWidth
+    heightNorm = height / imageHeight
 
     txt = name[:-4]   #remove the.jpg from the name
     txt += ".txt"
@@ -83,12 +84,11 @@ def CheckForFalsePostive(im, pix, color):      #make sure pixels around are the 
         if all((im[pix[0], pix[1] + 2] == color)) and all((im[pix[0], pix[1] - 2] == color)) and all((im[pix[0] + 2, pix[1]] == color)) and all((im[pix[0] - 2, pix[1]] == color)):
             return True
     except IndexError:  
-        print("Index out of bounds detected at " + str(pix))
-    print("False Positive detected at " + str(pix))
+        pass
     return False
 
 
-def findHeight(CvImg, width, height):
+def findHeight(CvImg, width, height, topColor, bottomColor):
     objectHeight = 0
     topFound = False
     bottomFound = False
@@ -96,37 +96,37 @@ def findHeight(CvImg, width, height):
     runtop = [height - 1, width - 1]
     runbottom = [0, 0]
 
-    lastValue = 0
 
     while runtop != runbottom and not objectFound:                          #Calculate the height of the object and the center of the object
-        if (CvImg[runtop[0], runtop[1]] != (50, 50, 50)).any() and not topFound:                                  #Find the top and bottom by detecting where the orange is                             
+        if (CvImg[runtop[0], runtop[1]] != bottomColor).any() and not topFound:                                  #Find the top and bottom by detecting where the orange is                             
             if  runtop[1]  > 0:                                                                       
                 runtop[1] -= 1
             else:
                 runtop[1] = width - 1
                 runtop[0] -= 1
         else:
-            topFound = CheckForFalsePostive(CvImg, runtop, (50,50,50))
-        if (CvImg[runbottom[0], runbottom[1]] != (100,100,150)).any() and not bottomFound:                    #runs when ANY of the pixel colors are not equal
+            topFound = CheckForFalsePostive(CvImg, runtop, bottomColor)
+        if (CvImg[runbottom[0], runbottom[1]] != topColor).any() and not bottomFound:                    #runs when ANY of the pixel colors are not equal
             if  runbottom[1] < width - 1:
                 runbottom[1] += 1
             else:
                 runbottom[1] = 0
                 runbottom[0] += 1
         else:
-            bottomFound = CheckForFalsePostive(CvImg, runbottom, (100,100,150))
+            bottomFound = CheckForFalsePostive(CvImg, runbottom, topColor)
 
-        if (CvImg[runtop[0], runtop[1]] == (50,50,50)).all() and (CvImg[runbottom[0], runbottom[1]] == (100,100,150)).all():
+        if (CvImg[runtop[0], runtop[1]] == bottomColor).all() and (CvImg[runbottom[0], runbottom[1]] == topColor).all():
             objectFound = True        
-        if (CvImg[runtop[1], runtop[0]] != (lastValue)).any():
-            print(str(CvImg[runtop[1], runtop[0]]))
-        lastValue = CvImg[runtop[1], runtop[0]]
 
     objectHeight = runtop[0] - runbottom[0]
-    print("The object height is " + str(objectHeight))    
-    return objectHeight  + 5
+    print("The object height is " + str(objectHeight))
 
-def findWidth(CvImg, width, height):
+    if height > objectHeight + (height * .02):    
+        return objectHeight  + int((height * .02))
+    else:
+        return objectHeight
+
+def findWidth(CvImg, width, height, leftColor, rightColor):
     objectWidth = 0
     objectFound = False
     foundLeft = False
@@ -137,49 +137,36 @@ def findWidth(CvImg, width, height):
     lastValue = 0
 
     while runleft != runright and not objectFound:                         
-        if (CvImg[runright[0], runright[1]] != (50,50,50)).any() and not foundRight:                                  #Find the top and bottom by detecting where the orange is                             
+        if (CvImg[runright[0], runright[1]] != leftColor).any() and not foundRight:                                  #Find the top and bottom by detecting where the orange is                             
             if  runright[0] < height - 1:                                             # Needs more debugging as a fault orange can throw things off                                
                 runright[0] += 1
             else:
                 runright[0] = 0
                 runright[1] += 1
         else:
-            foundLeft = CheckForFalsePostive(CvImg, runright, (50,50,50))
+            foundLeft = CheckForFalsePostive(CvImg, runright, leftColor)
 
-        if (CvImg[runleft[0], runleft[1]] != (50,50,50)).any() and not foundLeft:                    #runs when ANY of the pixel colors are not equal
+        if (CvImg[runleft[0], runleft[1]] != rightColor).any() and not foundLeft:                    #runs when ANY of the pixel colors are not equal
             if  runleft[0] > 0:
                 runleft[0] -= 1
             else:
                 runleft[0] = height - 1
                 runleft[1] -= 1
         else:
-            foundRight = CheckForFalsePostive(CvImg, runright, (50,50,50))
+            foundRight = CheckForFalsePostive(CvImg, runright, rightColor)
 
         #    print("Good Index found")
-        if (CvImg[runright[0], runright[1]] == (50,50,50)).all() and (CvImg[runleft[0], runleft[1]] == (50,50,50)).all():
+        if (CvImg[runright[0], runright[1]] == rightColor).all() and (CvImg[runleft[0], runleft[1]] == leftColor).all():
             objectFound = True
+
     objectWidth = runleft[1] - runright[1]
     centerWidth = runleft[0] + runright[0] / 2
     print("Object width is "+ str(objectWidth))
-    return [objectWidth + 20, [runright[1] - 10, runright[0]+ 10]]  #Rewrite the runright object to be x,y instead of y,x
+    if width > objectWidth + (width * .075) and height > runright[1] + (height * .04) and runright[1] - (width * .04) >= 0:
+        return [objectWidth + int((width * .075)), [runright[1] - int((width * .04)), runright[0] + int((height *.04))]]  #Rewrite the runright object to be x,y instead of y,x
+    else:                                                                                                  #Try to extend the borders of the width and height of the object
+        return [objectWidth , [runright[1], runright[0]]]  #Rewrite the runright object to be x,y instead of y,x
 
-
-
-def process(input_dir, output_dir):
-    # Ensure output directory exists
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # List all jpg images in the input directory
-    for image_name in os.listdir(input_dir):
-        if image_name.endswith(".jpg"):
-            image_path = os.path.join(input_dir, image_name)
-            print(f"Processing {image_name}...")
-            processed_image = imagePreprocessing(image_path)
-            findRequiredCords(processed_image)
-            # Save the processed image to the output directory
-            output_path = os.path.join(output_dir, f"labeled_{image_name}")
-            cv2.imwrite(output_path, processed_image)
 
 def empty_directory(directory):
     for item in os.listdir(directory):
@@ -191,19 +178,16 @@ def empty_directory(directory):
     print(f"All items in {directory} have been removed.")
 
 
-def run(pal, location):
+def run(pal, location, top, bottom, left, right):
     empty_directory('labels')
     empty_directory('subject')
+    FailedLabelList = []
     for pic_name in os.listdir(location):
-        findRequiredCords(imagePreproccessing(pal, os.path.join(location, pic_name)), pic_name)
-
-run([
-        150, 100, 100,     # Orange
-        50, 50, 50,      # Cone Black  (This color is located on the bottom of the cone)
-        0, 0, 0,         # Normal Black
-        110, 110, 110,   # 
-        200, 200, 200,
-        164, 135, 80,
-        0, 0, 255,
-        0, 255, 0, 
-    ] , '/home/jas/Downloads/png2jpg')
+        labelMade = findRequiredCords(imagePreproccessing(pal, os.path.join(location, pic_name)), pic_name, top, bottom, left, right)
+        if not labelMade:
+            FailedLabelList.append(pic_name)
+    print("The following images ran into errors and were thus not labeled:")
+    for item in FailedLabelList:
+        print(item)
+    print("Please use your original images to make your training dataset")
+    print("The images in subjects should be used to ensure that the labels are accurate")
