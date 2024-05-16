@@ -5,7 +5,7 @@ import labeler
 ### These will be colors the image will be changed into
 ### This is so it will be easy to identify the colors of the certain pixels
 ### Greater variaty means a greater probability that a subject will be identified
-palette = [
+palette =  [
         150, 100, 100,     # Orange
         50, 50, 50,        # Black  To Identify
         0, 0, 0,         
@@ -16,8 +16,10 @@ palette = [
         0, 255, 0, 
     ]
 
+
 ###Link to a folder that ONLY chontains .jpg images! (no pngs)
 linkToFolder = '/home/jas/Downloads/png2jpg'
+
 
 ### These are the expects colors of the top, bottom, left and right
 ### These colors must be included in the palette
